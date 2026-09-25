@@ -22,6 +22,7 @@
 
 namespace
 {
+    constexpr int32 OBSERVED_MOVEMENT_LOG_MARKER = -2;
     std::mutex observedBotPositionsMutex;
     std::unordered_map<uint32, WorldPosition> observedBotPositions;
 }
@@ -1108,7 +1109,7 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
                 movement << std::to_string(bot->getRace()) << ",";
                 movement << std::to_string(bot->getClass()) << ",";
                 movement << ai->GetLevelFloat() << ",";
-                movement << 0;
+                movement << OBSERVED_MOVEMENT_LOG_MARKER;
                 log("bot_movement.csv", movement.str().c_str());
             }
         }
