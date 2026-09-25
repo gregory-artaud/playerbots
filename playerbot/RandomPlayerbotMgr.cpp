@@ -1004,7 +1004,6 @@ void RandomPlayerbotMgr::LoginFreeBots()
                 }
 
                 if (master)
-                    bot->TeleportTo(WorldPosition(master));
                 {
                     // Only move the bot when it is genuinely not with its master. A freshly created bot is
                     // saved at the master's position - CreateBot flags a pending teleport so SaveToDB()
