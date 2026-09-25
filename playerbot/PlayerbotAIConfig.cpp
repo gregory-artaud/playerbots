@@ -20,6 +20,12 @@
 #include <sstream>
 #include "PlayerbotLoginMgr.h"
 
+namespace
+{
+    std::mutex observedBotPositionsMutex;
+    std::unordered_map<uint32, WorldPosition> observedBotPositions;
+}
+
 std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
 {
     std::vector<std::string> values;
@@ -1068,13 +1074,51 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
     if (hasLog("bot_events.csv"))
     {
         Player* bot = ai->GetBot();
+        WorldPosition currentPosition(bot);
+
+        if (hasLog("bot_movement.csv"))
+        {
+            WorldPosition previousPosition;
+            bool moved = false;
+            {
+                std::lock_guard<std::mutex> guard(observedBotPositionsMutex);
+                auto position = observedBotPositions.find(bot->GetGUIDLow());
+                if (position != observedBotPositions.end())
+                {
+                    previousPosition = position->second;
+                    moved = previousPosition.getMapId() == currentPosition.getMapId() &&
+                        previousPosition.sqDistance2d(currentPosition) > 0.01f;
+                    position->second = currentPosition;
+                }
+                else
+                {
+                    observedBotPositions.emplace(bot->GetGUIDLow(), currentPosition);
+                }
+            }
+
+            // Some combat movement bypasses MovementActions' destination logs.
+            // Record the real positions observed between native bot events so
+            // acceptance evidence still reflects actual world movement.
+            if (moved)
+            {
+                std::ostringstream movement;
+                movement << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
+                movement << bot->GetName() << ",";
+                previousPosition.printWKT({previousPosition, currentPosition}, movement, 1);
+                movement << std::to_string(bot->getRace()) << ",";
+                movement << std::to_string(bot->getClass()) << ",";
+                movement << ai->GetLevelFloat() << ",";
+                movement << 0;
+                log("bot_movement.csv", movement.str().c_str());
+            }
+        }
 
         std::ostringstream out;
         out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
         out << bot->GetName() << ",";
         out << eventName << ",";
         out << std::fixed << std::setprecision(2);
-        WorldPosition(bot).printWKT(out);
+        currentPosition.printWKT(out);
 
         out << std::to_string(bot->getRace()) << ",";
         out << std::to_string(bot->getClass()) << ",";
