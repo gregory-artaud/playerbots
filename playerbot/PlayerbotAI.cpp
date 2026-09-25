@@ -6985,6 +6985,15 @@ bool PlayerbotAI::HasSkill(SkillType skill)
 
 bool ChatHandler::HandlePlayerbotCommand(char* args)
 {
+    // CMaNGOS only audits commands above SEC_PLAYER in ExecuteCommand, while
+    // the player-facing bot command intentionally runs at SEC_PLAYER. Record
+    // this chat entry point explicitly so passive acceptance can detect any
+    // manual .bot command without logging internal PlayerBots calls.
+    std::string command = "bot";
+    if (args && *args)
+        command += " " + std::string(args);
+    LogCommand(command.c_str());
+
     return PlayerbotMgr::HandlePlayerbotMgrCommand(this, args);
 }
 

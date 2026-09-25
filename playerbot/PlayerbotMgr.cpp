@@ -1084,7 +1084,11 @@ void PlayerbotMgr::OnPlayerLogin(Player* player)
     sPlayerbotTextMgr.AddLocalePriority(player->GetSession()->GetSessionDbLocaleIndex());
     sLog.outDetail("Player %s logged in, localeDbc %i, localeDb %i", player->GetName(), (uint32)(player->GetSession()->GetSessionDbcLocale()), player->GetSession()->GetSessionDbLocaleIndex());
 
-    if (sPlayerbotAIConfig.IsFreeAltBot(player))
+    // An always-online character can already own an AI when a genuine client
+    // takes over its bot session. "self" is a toggle, so invoking it in that
+    // case disables the very AI the reconnect is meant to observe. Only
+    // enable selfbot when login did not inherit an existing AI.
+    if (sPlayerbotAIConfig.IsFreeAltBot(player) && !player->GetPlayerbotAI())
     {
         sLog.outDetail("Enabling selfbot on login for %s", player->GetName());
         HandlePlayerbotCommand("self", player);
