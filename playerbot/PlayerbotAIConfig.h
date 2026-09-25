@@ -420,6 +420,7 @@ public:
     bool isLogOpen(std::string fileName) { auto it = logFiles.find(fileName); return it != logFiles.end() && it->second.second;}
     void log(std::string fileName, const char* str, ...);
 
+    void logObservedMovement(PlayerbotAI* ai);
     void logEvent(PlayerbotAI* ai, std::string eventName, std::string info1 = "", std::string info2 = "");
     void logEvent(PlayerbotAI* ai, std::string eventName, ObjectGuid guid, std::string info2);
 

@@ -1070,6 +1070,45 @@ void PlayerbotAIConfig::log(std::string fileName, const char* str, ...)
     fflush(stdout);
 }
 
+void PlayerbotAIConfig::logObservedMovement(PlayerbotAI* ai)
+{
+    if (!hasLog("bot_movement.csv"))
+        return;
+
+    Player* bot = ai->GetBot();
+    WorldPosition currentPosition(bot);
+    WorldPosition previousPosition;
+    bool moved = false;
+    {
+        std::lock_guard<std::mutex> guard(observedBotPositionsMutex);
+        auto position = observedBotPositions.find(bot->GetGUIDLow());
+        if (position != observedBotPositions.end())
+        {
+            previousPosition = position->second;
+            moved = previousPosition.getMapId() == currentPosition.getMapId() &&
+                previousPosition.sqDistance2d(currentPosition) > 0.01f;
+            position->second = currentPosition;
+        }
+        else
+        {
+            observedBotPositions.emplace(bot->GetGUIDLow(), currentPosition);
+        }
+    }
+
+    if (!moved)
+        return;
+
+    std::ostringstream movement;
+    movement << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
+    movement << bot->GetName() << ",";
+    previousPosition.printWKT({previousPosition, currentPosition}, movement, 1);
+    movement << std::to_string(bot->getRace()) << ",";
+    movement << std::to_string(bot->getClass()) << ",";
+    movement << ai->GetLevelFloat() << ",";
+    movement << OBSERVED_MOVEMENT_LOG_MARKER;
+    log("bot_movement.csv", movement.str().c_str());
+}
+
 void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::string info1, std::string info2)
 {
     if (hasLog("bot_events.csv"))
@@ -1077,42 +1116,9 @@ void PlayerbotAIConfig::logEvent(PlayerbotAI* ai, std::string eventName, std::st
         Player* bot = ai->GetBot();
         WorldPosition currentPosition(bot);
 
-        if (hasLog("bot_movement.csv"))
-        {
-            WorldPosition previousPosition;
-            bool moved = false;
-            {
-                std::lock_guard<std::mutex> guard(observedBotPositionsMutex);
-                auto position = observedBotPositions.find(bot->GetGUIDLow());
-                if (position != observedBotPositions.end())
-                {
-                    previousPosition = position->second;
-                    moved = previousPosition.getMapId() == currentPosition.getMapId() &&
-                        previousPosition.sqDistance2d(currentPosition) > 0.01f;
-                    position->second = currentPosition;
-                }
-                else
-                {
-                    observedBotPositions.emplace(bot->GetGUIDLow(), currentPosition);
-                }
-            }
-
-            // Some combat movement bypasses MovementActions' destination logs.
-            // Record the real positions observed between native bot events so
-            // acceptance evidence still reflects actual world movement.
-            if (moved)
-            {
-                std::ostringstream movement;
-                movement << sPlayerbotAIConfig.GetTimestampStr() << "+00,";
-                movement << bot->GetName() << ",";
-                previousPosition.printWKT({previousPosition, currentPosition}, movement, 1);
-                movement << std::to_string(bot->getRace()) << ",";
-                movement << std::to_string(bot->getClass()) << ",";
-                movement << ai->GetLevelFloat() << ",";
-                movement << OBSERVED_MOVEMENT_LOG_MARKER;
-                log("bot_movement.csv", movement.str().c_str());
-            }
-        }
+        // Record actual positions both at meaningful events and, through the
+        // AI update loop, once a minute during otherwise quiet travel.
+        logObservedMovement(ai);
 
         std::ostringstream out;
         out << sPlayerbotAIConfig.GetTimestampStr() << "+00,";

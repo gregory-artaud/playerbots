@@ -266,7 +266,17 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
     AiObjectContext* context = aiObjectContext;
     std::string mapString = WorldPosition(bot).isInstance() ? "I" : std::to_string(bot->GetMapId());
     auto pmo = sPerformanceMonitor.start(PERF_MON_TOTAL, "PlayerbotAI::UpdateAI " + mapString, nullptr, bot->GetMapId(), bot->GetInstanceId());
-    
+
+    if (observedMovementLogDelay > elapsed)
+    {
+        observedMovementLogDelay -= elapsed;
+    }
+    else
+    {
+        observedMovementLogDelay = 60 * 1000;
+        sPlayerbotAIConfig.logObservedMovement(this);
+    }
+
     if(aiInternalUpdateDelay > elapsed)
     {
         aiInternalUpdateDelay -= elapsed;
